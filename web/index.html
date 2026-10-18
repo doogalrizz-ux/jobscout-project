@@ -99,6 +99,9 @@ input:focus, select:focus, button:focus-visible { outline: 2px solid var(--gold-
 .badge { display: inline-block; font-size: 11px; font-weight: 700; letter-spacing: .04em; border-radius: 4px;
   padding: 1px 6px; vertical-align: 2px; margin-left: 6px; }
 .badge.new { color: var(--bg); background: var(--new); }
+.job .desc { grid-column: 1 / -1; margin-top: 8px; padding: 12px 14px; background: var(--surface-2);
+  border: 1px solid var(--border); border-radius: 8px; white-space: pre-wrap; font-size: 14px; line-height: 1.55;
+  max-height: 420px; overflow: auto; }
 .pill { display: inline-block; font-size: 12px; border-radius: 4px; padding: 0 6px; background: var(--chip); color: var(--text); margin-right: 4px; }
 .star[aria-pressed="true"] { color: var(--gold); border-color: var(--gold); }
 @media (max-width: 560px) { .job { grid-template-columns: 1fr; } .job .side { text-align: left; } }
@@ -181,7 +184,7 @@ footer p { margin: 6px 0; }
       <ol>
         <li>Pick your <strong>roles</strong>, <strong>location</strong> and <strong>salary</strong> on the left. Your choices are saved in this browser.</li>
         <li>Come back each morning. Jobs marked <span class="badge new">NEW</span> appeared since your last visit.</li>
-        <li><strong>Apply</strong> takes you straight to the employer's own posting. <strong>Copy description</strong> puts the full job description on your clipboard for your resume or cover letter.</li>
+        <li><strong>Apply</strong> takes you straight to the employer's own posting. <strong>Show description</strong> reads the full job description right here, and <strong>Copy description</strong> puts it on your clipboard for your resume or cover letter.</li>
         <li><strong>☆ Save</strong> keeps a job on your Saved tab.</li>
         <li><strong>Using ChatGPT or Claude?</strong> Click <em>Export for AI</em> to download your current matches (up to 100) with full descriptions. Upload that file to your AI chat with your resume and use the prompt below to rank them.</li>
       </ol>
@@ -384,9 +387,11 @@ function card(j) {
     <div class="side"><div class="money">${esc(pay)}</div><div class="meta">${esc(fmtDate(j.posted || j.seen))}</div></div>
     <div class="actions">
       <a class="btn small primary" href="${esc(j.apply)}" target="_blank" rel="noopener">Apply ↗</a>
+      <button class="btn small" data-act="desc" type="button" aria-expanded="false">Show description</button>
       <button class="btn small" data-act="copy" type="button">Copy description</button>
       <button class="btn small star" data-act="save" type="button" aria-pressed="${saved.has(j.key)}">${saved.has(j.key) ? "★ Saved" : "☆ Save"}</button>
     </div>
+    <div class="desc" hidden></div>
   </article>`;
 }
 
@@ -503,6 +508,18 @@ $("list").addEventListener("click", async e => {
     b.setAttribute("aria-pressed", saved.has(j.key)); b.textContent = saved.has(j.key) ? "★ Saved" : "☆ Save";
     $("savedcount").textContent = saved.size ? `(${saved.size})` : "";
     if (view === "saved") render(true);
+  } else if (b.dataset.act === "desc") {
+    const panel = b.closest(".job").querySelector(".desc");
+    const open = b.getAttribute("aria-expanded") === "true";
+    b.setAttribute("aria-expanded", !open);
+    b.textContent = open ? "Show description" : "Hide description";
+    panel.hidden = open;
+    if (!open && !panel.dataset.loaded) {
+      panel.textContent = "Loading…";
+      const d = await descriptionFor(j);
+      panel.textContent = d || "Description not available here. Use Apply to open the posting.";
+      panel.dataset.loaded = "1";
+    }
   } else if (b.dataset.act === "copy") {
     b.textContent = "Copying…";
     const d = await descriptionFor(j);
