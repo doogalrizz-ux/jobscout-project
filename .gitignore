@@ -1,0 +1,13 @@
+# Personal filter settings (copied from config.example.toml on first run)
+config.toml
+# Personal run state and reports
+jobscout.db
+output/
+# Generated dataset and the Workday/SmartRecruiters detail cache (rebuilt by the daily Action)
+public/
+state/
+# Old single-file version's company list (replaced by registry/companies.json)
+/companies.json
+__pycache__/
+# Wrangler local cache (contains Cloudflare account info)
+.wrangler/

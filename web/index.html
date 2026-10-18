@@ -1,0 +1,553 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>JobScout — Fresh Job Leads</title>
+<meta name="description" content="Free, open-source daily feed of new US job postings from thousands of company career sites. Filter by role, location and salary; export to your AI assistant.">
+<script>
+  // Where the daily dataset lives. "data" works when this page is served next to it (GitHub Pages);
+  // copies hosted elsewhere point at the published dataset instead.
+  window.JOBSCOUT_DATA_URL = window.JOBSCOUT_DATA_URL || "data";
+</script>
+<style>
+:root {
+  --bg: #0b0e17; --surface: #131722; --surface-2: #181d2b; --border: #232a3d;
+  --gold: #c9a84c; --gold-dim: #8a6e2f; --teal: #4ec9b0; --text: #d4d8e8; --muted: #8a90a8;
+  --heading: #eef0f8; --money: #6fd39a; --new: #4ec9b0; --danger: #e07a7a;
+  --chip: #1c2233; --chip-on: #2a2410; --shadow: 0 1px 0 rgba(0,0,0,.25);
+}
+@media (prefers-color-scheme: light) {
+  :root:not([data-theme="dark"]) {
+    --bg: #f6f4ef; --surface: #ffffff; --surface-2: #faf8f3; --border: #e2ddd0;
+    --gold: #8a6a12; --gold-dim: #b89a4a; --teal: #127a66; --text: #2a2d36; --muted: #6a6f80;
+    --heading: #15171d; --money: #17703f; --new: #127a66; --danger: #b03a3a;
+    --chip: #f0ece2; --chip-on: #f6ebc9; --shadow: 0 1px 2px rgba(0,0,0,.05);
+  }
+}
+:root[data-theme="light"] {
+  --bg: #f6f4ef; --surface: #ffffff; --surface-2: #faf8f3; --border: #e2ddd0;
+  --gold: #8a6a12; --gold-dim: #b89a4a; --teal: #127a66; --text: #2a2d36; --muted: #6a6f80;
+  --heading: #15171d; --money: #17703f; --new: #127a66; --danger: #b03a3a;
+  --chip: #f0ece2; --chip-on: #f6ebc9; --shadow: 0 1px 2px rgba(0,0,0,.05);
+}
+* { box-sizing: border-box; }
+html { -webkit-text-size-adjust: 100%; }
+body { margin: 0; background: var(--bg); color: var(--text);
+  font: 15px/1.5 system-ui, -apple-system, "Segoe UI", Roboto, sans-serif; }
+a { color: var(--gold); text-decoration: none; }
+a:hover { color: var(--teal); }
+.mono { font-family: "Courier New", ui-monospace, monospace; }
+.wrap { max-width: 1180px; margin: 0 auto; padding: 0 16px; }
+
+header { border-bottom: 1px solid var(--border); padding: 28px 0 22px; }
+.brand { display: flex; align-items: baseline; gap: 12px; flex-wrap: wrap; }
+.brand h1 { font-family: Georgia, serif; font-weight: normal; color: var(--heading); margin: 0; font-size: 30px; }
+.brand .tag { font-family: "Courier New", monospace; color: var(--gold); font-size: 13px; letter-spacing: .08em; text-transform: uppercase; }
+.lede { color: var(--muted); margin: 8px 0 0; max-width: 760px; }
+.top-actions { margin-left: auto; display: flex; gap: 8px; }
+
+.layout { display: grid; grid-template-columns: 300px 1fr; gap: 24px; padding: 24px 0 64px; }
+@media (max-width: 860px) { .layout { grid-template-columns: 1fr; } }
+
+aside { align-self: start; position: sticky; top: 12px; max-height: calc(100vh - 24px); overflow: auto;
+  background: var(--surface); border: 1px solid var(--border); border-radius: 10px; padding: 16px; }
+@media (max-width: 860px) { aside { position: static; max-height: none; } }
+fieldset { border: 0; padding: 0; margin: 0 0 18px; }
+legend, .label { font-family: "Courier New", monospace; color: var(--gold); font-size: 12px; letter-spacing: .08em;
+  text-transform: uppercase; margin-bottom: 8px; padding: 0; }
+.hint { color: var(--muted); font-size: 12px; margin: 4px 0 0; }
+input[type=text], input[type=number], input[type=search], select {
+  width: 100%; background: var(--surface-2); color: var(--text); border: 1px solid var(--border);
+  border-radius: 6px; padding: 8px 10px; font: inherit; }
+input:focus, select:focus, button:focus-visible { outline: 2px solid var(--gold-dim); outline-offset: 1px; }
+.chips { display: flex; flex-wrap: wrap; gap: 6px; }
+.chip { border: 1px solid var(--border); background: var(--chip); color: var(--text); border-radius: 999px;
+  padding: 4px 10px; font: inherit; font-size: 13px; cursor: pointer; }
+.chip[aria-pressed="true"] { background: var(--chip-on); border-color: var(--gold); color: var(--heading); }
+.check { display: flex; align-items: center; gap: 8px; margin: 6px 0; cursor: pointer; }
+.check input { accent-color: var(--gold); width: 16px; height: 16px; }
+.row2 { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; }
+
+.btn { border: 1px solid var(--border); background: var(--surface); color: var(--text); border-radius: 6px;
+  padding: 7px 12px; font: inherit; font-size: 13px; cursor: pointer; white-space: nowrap; }
+.btn:hover { border-color: var(--gold-dim); }
+.btn.primary { background: var(--gold); color: #15120a; border-color: var(--gold); font-weight: 600; }
+.btn.primary:hover { filter: brightness(1.08); }
+.btn.small { padding: 4px 9px; font-size: 12.5px; }
+.btn.link { border: 0; background: none; color: var(--muted); padding: 4px 0; }
+.btn.link:hover { color: var(--gold); }
+
+.toolbar { display: flex; gap: 10px; align-items: center; flex-wrap: wrap; margin-bottom: 12px; }
+.toolbar .count { font-family: Georgia, serif; color: var(--heading); font-size: 20px; margin-right: auto; }
+.toolbar .count small { font-family: system-ui, sans-serif; color: var(--muted); font-size: 13px; margin-left: 6px; }
+.toolbar select { width: auto; }
+.tabs { display: flex; gap: 4px; margin-bottom: 12px; }
+.tab { border: 0; background: none; color: var(--muted); font: inherit; padding: 6px 10px; border-bottom: 2px solid transparent; cursor: pointer; }
+.tab[aria-selected="true"] { color: var(--heading); border-bottom-color: var(--gold); }
+
+.job { background: var(--surface); border: 1px solid var(--border); border-radius: 10px; padding: 12px 14px;
+  margin-bottom: 8px; display: grid; grid-template-columns: 1fr auto; gap: 4px 16px; box-shadow: var(--shadow); }
+.job h3 { margin: 0; font-size: 15.5px; font-weight: 600; line-height: 1.35; }
+.job h3 a { color: var(--heading); }
+.job h3 a:hover { color: var(--gold); }
+.job .co { color: var(--text); font-weight: 600; }
+.job .meta { color: var(--muted); font-size: 13px; }
+.job .side { text-align: right; white-space: nowrap; }
+.job .money { color: var(--money); font-weight: 600; font-size: 13.5px; }
+.job .actions { grid-column: 1 / -1; display: flex; gap: 6px; flex-wrap: wrap; margin-top: 6px; }
+.badge { display: inline-block; font-size: 11px; font-weight: 700; letter-spacing: .04em; border-radius: 4px;
+  padding: 1px 6px; vertical-align: 2px; margin-left: 6px; }
+.badge.new { color: var(--bg); background: var(--new); }
+.pill { display: inline-block; font-size: 12px; border-radius: 4px; padding: 0 6px; background: var(--chip); color: var(--text); margin-right: 4px; }
+.star[aria-pressed="true"] { color: var(--gold); border-color: var(--gold); }
+@media (max-width: 560px) { .job { grid-template-columns: 1fr; } .job .side { text-align: left; } }
+
+.empty, .loading { text-align: center; color: var(--muted); padding: 48px 16px; border: 1px dashed var(--border); border-radius: 10px; }
+.more { display: block; margin: 16px auto; }
+details.help { background: var(--surface); border: 1px solid var(--border); border-radius: 10px; padding: 12px 14px; margin-bottom: 14px; }
+details.help summary { cursor: pointer; color: var(--heading); }
+details.help ol { padding-left: 20px; margin: 10px 0; }
+details.help li { margin: 4px 0; }
+footer { border-top: 1px solid var(--border); color: var(--muted); font-size: 13px; padding: 20px 0 40px; }
+footer p { margin: 6px 0; }
+.toast { position: fixed; bottom: 20px; left: 50%; transform: translateX(-50%); background: var(--heading); color: var(--bg);
+  padding: 8px 14px; border-radius: 6px; font-size: 14px; opacity: 0; transition: opacity .2s; pointer-events: none; z-index: 10; }
+.toast.show { opacity: 1; }
+.sr-only { position: absolute; width: 1px; height: 1px; overflow: hidden; clip: rect(0 0 0 0); }
+</style>
+</head>
+<body>
+<header>
+  <div class="wrap">
+    <div class="brand">
+      <h1>JobScout</h1>
+      <span class="tag">fresh leads, every morning</span>
+      <div class="top-actions">
+        <button class="btn small" id="theme" type="button" title="Switch light/dark">◐ Theme</button>
+      </div>
+    </div>
+    <p class="lede" id="lede">New US job postings pulled straight from company career sites every morning. Pick your roles and locations; your settings stay in this browser. Free and open source.</p>
+  </div>
+</header>
+
+<div class="wrap layout">
+  <aside aria-label="Filters">
+    <fieldset>
+      <legend>Roles</legend>
+      <div class="chips" id="roles"></div>
+      <p class="hint">Pick any that fit. Nothing picked = all roles.</p>
+    </fieldset>
+    <fieldset>
+      <legend><label for="kw">Title keywords</label></legend>
+      <input type="text" id="kw" placeholder="e.g. analyst, salesforce, 5G">
+      <p class="hint">Comma-separated. Matches any of them, on top of the roles above.</p>
+      <div style="height:8px"></div>
+      <input type="text" id="nokw" placeholder="Exclude, e.g. intern, retail" aria-label="Exclude title keywords">
+    </fieldset>
+    <fieldset>
+      <legend>Level</legend>
+      <div class="chips" id="levels"></div>
+    </fieldset>
+    <fieldset>
+      <legend>Location</legend>
+      <label class="check"><input type="checkbox" id="remote" checked> Remote (US)</label>
+      <input type="text" id="places" placeholder="Cities or states, e.g. NYC, NJ, Dallas" aria-label="Cities or states">
+      <p class="hint">Shows remote jobs plus jobs in these places. Leave both empty for all of the US.</p>
+    </fieldset>
+    <fieldset>
+      <legend><label for="minpay">Salary</label></legend>
+      <div class="row2">
+        <input type="number" id="minpay" placeholder="Min $ (top of range)" min="0" step="5000">
+        <select id="age" aria-label="Posted within">
+          <option value="1">Posted: 1 day</option>
+          <option value="3">Posted: 3 days</option>
+          <option value="7" selected>Posted: 7 days</option>
+          <option value="14">Posted: 14 days</option>
+        </select>
+      </div>
+      <label class="check"><input type="checkbox" id="nopay" checked> Include jobs with no salary listed</label>
+    </fieldset>
+    <fieldset>
+      <legend>Show</legend>
+      <label class="check"><input type="checkbox" id="onlynew"> Only new since my last visit</label>
+    </fieldset>
+    <button class="btn link" id="reset" type="button">Reset all filters</button>
+  </aside>
+
+  <main>
+    <details class="help" id="help">
+      <summary>How to use this (and how to use it with AI)</summary>
+      <ol>
+        <li>Pick your <strong>roles</strong>, <strong>location</strong> and <strong>salary</strong> on the left. Your choices are saved in this browser.</li>
+        <li>Come back each morning. Jobs marked <span class="badge new">NEW</span> appeared since your last visit.</li>
+        <li><strong>Apply</strong> takes you straight to the employer's own posting. <strong>Copy description</strong> puts the full job description on your clipboard for your resume or cover letter.</li>
+        <li><strong>☆ Save</strong> keeps a job on your Saved tab.</li>
+        <li><strong>Using ChatGPT or Claude?</strong> Click <em>Export for AI</em> to download your current matches (up to 100) with full descriptions. Upload that file to your AI chat with your resume and use the prompt below to rank them.</li>
+      </ol>
+      <button class="btn small" id="copyprompt" type="button">Copy AI prompt</button>
+    </details>
+
+    <div class="tabs" role="tablist">
+      <button class="tab" role="tab" id="tab-all" aria-selected="true" type="button">Matches</button>
+      <button class="tab" role="tab" id="tab-saved" aria-selected="false" type="button">Saved <span id="savedcount"></span></button>
+    </div>
+    <div class="toolbar">
+      <div class="count" id="count" aria-live="polite">Loading…</div>
+      <input type="search" id="q" placeholder="Search title or company" style="width:220px" aria-label="Search title or company">
+      <select id="sort" aria-label="Sort">
+        <option value="new">Newest first</option>
+        <option value="pay">Highest pay first</option>
+        <option value="co">Company A–Z</option>
+      </select>
+      <button class="btn primary" id="export" type="button">Export for AI</button>
+    </div>
+    <div id="list"><div class="loading">Loading today's jobs…</div></div>
+    <button class="btn more" id="more" type="button" hidden>Show more</button>
+  </main>
+</div>
+
+<footer>
+  <div class="wrap">
+    <p id="stamp"></p>
+    <p>Listings come from companies' public job boards (Greenhouse, Lever, Ashby, Workday, SmartRecruiters). Always apply on the employer's site; JobScout never sees your application.</p>
+    <p>Free and open source (MIT) · <a href="https://github.com/doogalrizz-ux/jobscout-project">Source on GitHub</a> · Built by <a href="https://datasorcerer.net">Greg Macgowan, the Data Sorcerer</a></p>
+  </div>
+</footer>
+<div class="toast" id="toast" role="status"></div>
+
+<script>
+(() => {
+"use strict";
+const DATA = window.JOBSCOUT_DATA_URL.replace(/\/$/, "");
+const PAGE = 100, EXPORT_MAX = 100;
+
+// ---------------------------------------------------------------- presets
+const ROLES = {
+  "Sales": ["sales", "account executive", "account manager", "business development", "\\bbdr\\b", "\\bsdr\\b",
+    "account director", "territory", "channel manager", "partner manager", "solutions consultant", "pre-?sales", "\\bae\\b"],
+  "Customer Success & Support": ["customer success", "customer experience", "customer support", "customer service",
+    "client services", "client success", "customer care", "support specialist", "support engineer", "retention",
+    "onboarding", "implementation", "technical account manager", "client relations", "customer relations", "call center", "contact center"],
+  "Data & Analytics": ["data scien", "data analy", "data engineer", "analytics", "business intelligence", "\\bbi\\b",
+    "machine learning", "insights", "reporting analyst", "statistic", "quantitative", "decision scien", "data architect"],
+  "Project & Program Mgmt": ["project manager", "program manager", "\\bpmo\\b", "scrum master", "delivery manager",
+    "agile coach", "project coordinator", "program director", "project lead", "technical program"],
+  "Network & Telecom": ["network engineer", "\\brf\\b", "telecom", "wireless", "\\b5g\\b", "\\blte\\b", "fiber",
+    "\\bnoc\\b", "network operations", "transmission", "\\bran\\b", "optical", "network architect", "outside plant", "field technician"],
+  "Engineering & IT": ["software engineer", "developer", "devops", "\\bsre\\b", "site reliability", "systems engineer",
+    "\\bit\\b", "system administrator", "systems administrator", "cloud engineer", "security engineer", "cyber",
+    "solutions architect", "qa engineer", "quality engineer", "infrastructure engineer", "help ?desk", "desktop support"],
+  "Product": ["product manager", "product owner", "product lead", "head of product", "product director", "product operations"],
+  "Marketing": ["marketing", "brand", "content", "communications", "\\bseo\\b", "demand gen", "social media",
+    "public relations", "\\bpr\\b", "copywriter", "events"],
+  "Finance & Accounting": ["finance", "financial", "fp&a", "accounting", "accountant", "controller", "treasury",
+    "\\btax\\b", "audit", "payroll", "billing", "pricing analyst"],
+  "HR & Recruiting": ["recruit", "talent acquisition", "human resources", "\\bhr\\b", "people operations", "people partner",
+    "compensation", "benefits", "learning (and|&) development", "training", "workforce"],
+  "Operations & Strategy": ["operations manager", "business operations", "strategy", "operations analyst", "supply chain",
+    "procurement", "vendor management", "sourcing", "logistics", "chief of staff", "revenue operations", "sales operations"],
+};
+const LEVELS = {
+  "Entry": "\\b(junior|jr|associate|entry|intern|graduate|apprentice|trainee)\\b|\\b(i|1)$",
+  "Mid (no title level)": null,
+  "Senior": "\\b(senior|sr)\\b",
+  "Lead / Principal / Staff": "\\b(lead|principal|staff)\\b",
+  "Manager": "\\bmanager\\b",
+  "Director +": "\\b(director|head of|vp|vice president|chief|svp|evp)\\b",
+};
+const STATES = {AL:"alabama",AK:"alaska",AZ:"arizona",AR:"arkansas",CA:"california",CO:"colorado",CT:"connecticut",
+  DE:"delaware",FL:"florida",GA:"georgia",HI:"hawaii",ID:"idaho",IL:"illinois",IN:"indiana",IA:"iowa",KS:"kansas",
+  KY:"kentucky",LA:"louisiana",ME:"maine",MD:"maryland",MA:"massachusetts",MI:"michigan",MN:"minnesota",
+  MS:"mississippi",MO:"missouri",MT:"montana",NE:"nebraska",NV:"nevada",NH:"new hampshire",NJ:"new jersey",
+  NM:"new mexico",NY:"new york",NC:"north carolina",ND:"north dakota",OH:"ohio",OK:"oklahoma",OR:"oregon",
+  PA:"pennsylvania",RI:"rhode island",SC:"south carolina",SD:"south dakota",TN:"tennessee",TX:"texas",UT:"utah",
+  VT:"vermont",VA:"virginia",WA:"washington",WV:"west virginia",WI:"wisconsin",WY:"wyoming",DC:"district of columbia"};
+const ALIASES = {"nyc": "new york|nyc|manhattan|brooklyn", "sf": "san francisco", "la": "los angeles",
+  "dc": "washington,? d\\.?c|district of columbia|\\bdc\\b", "bay area": "san francisco|bay area|palo alto|san jose|oakland|mountain view|sunnyvale|menlo park|redwood city",
+  "dfw": "dallas|fort worth|irving|plano|frisco"};
+
+// ---------------------------------------------------------------- storage (best effort)
+const store = {
+  get(k, d) { try { const v = localStorage.getItem("jobscout:" + k); return v == null ? d : JSON.parse(v); } catch { return d; } },
+  set(k, v) { try { localStorage.setItem("jobscout:" + k, JSON.stringify(v)); } catch {} },
+};
+const DEFAULTS = { roles: [], kw: "", nokw: "", levels: [], remote: true, places: "", minpay: "", nopay: true, age: "7", onlynew: false, sort: "new" };
+let S = Object.assign({}, DEFAULTS, store.get("settings", {}));
+let saved = new Set(store.get("saved", []));
+
+// "New since last visit": remember the previous visit day, roll it forward once per day.
+const today = new Date().toISOString().slice(0, 10);
+let visit = store.get("visit", null);
+if (!visit || visit.last !== today) { visit = { prev: visit ? visit.last : null, last: today }; store.set("visit", visit); }
+
+// ---------------------------------------------------------------- helpers
+const $ = id => document.getElementById(id);
+const esc = s => String(s ?? "").replace(/[&<>"']/g, c => ({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c]));
+const money = v => v ? "$" + Math.round(v / 1000) + "K" : "";
+const words = s => s.split(",").map(x => x.trim()).filter(Boolean);
+const reEsc = s => s.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+const anyRe = parts => parts.length ? new RegExp(parts.join("|"), "i") : null;
+function toast(msg) { const t = $("toast"); t.textContent = msg; t.classList.add("show"); clearTimeout(t._h); t._h = setTimeout(() => t.classList.remove("show"), 1800); }
+function daysAgo(iso) { return iso ? Math.round((Date.parse(today) - Date.parse(iso)) / 864e5) : 99; }
+function fmtDate(iso) {
+  const d = daysAgo(iso);
+  return d <= 0 ? "Today" : d === 1 ? "Yesterday" : d < 7 ? d + " days ago" : new Date(iso + "T12:00:00").toLocaleDateString(undefined, { month: "short", day: "numeric" });
+}
+function placeRe(token) {
+  const t = token.toLowerCase();
+  if (ALIASES[t]) return ALIASES[t];
+  const up = token.toUpperCase();
+  if (STATES[up]) return `${STATES[up]}|(^|[,\\-|/(]\\s*)${up}(?=\\s*($|[,\\-|/)]))`;
+  const abbr = Object.keys(STATES).find(k => STATES[k] === t);
+  if (abbr) return `${t}|(^|[,\\-|/(]\\s*)${abbr}(?=\\s*($|[,\\-|/)]))`;
+  return reEsc(t);
+}
+
+// ---------------------------------------------------------------- data
+let JOBS = [], META = null, view = "all", shown = PAGE, current = [];
+const descCache = {};
+
+async function load() {
+  try {
+    const res = await fetch(DATA + "/jobs.json", { cache: "no-cache" });
+    if (!res.ok) throw new Error(res.status);
+    META = await res.json();
+  } catch (e) {
+    $("list").innerHTML = `<div class="empty">Couldn't load today's jobs (${esc(e.message)}). Please try again in a few minutes.</div>`;
+    $("count").textContent = "";
+    return;
+  }
+  const f = Object.fromEntries(META.fields.map((n, i) => [n, i]));
+  JOBS = META.jobs.map(r => {
+    const [name, ats, slug, file, host] = META.companies[r[f.c]];
+    const [stdUrl, stdApply] = urlsFor(ats, slug, r[f.id], host);
+    const url = r[f.url] || stdUrl;
+    return { key: ats + ":" + slug + ":" + r[f.id], id: r[f.id], company: name, ats, slug, file,
+      title: r[f.title], loc: r[f.loc] || "", remote: !!r[f.remote], work: r[f.work] || "",
+      smin: r[f.smin], smax: r[f.smax], posted: r[f.posted], seen: r[f.seen], url,
+      apply: r[f.apply] || (r[f.url] ? url : stdApply) };
+  });
+  const gen = new Date(META.generated);
+  $("stamp").textContent = `Updated ${gen.toLocaleString(undefined, { weekday: "long", month: "long", day: "numeric", hour: "numeric", minute: "2-digit" })} · ${JOBS.length.toLocaleString()} US jobs posted in the last ${META.max_age_days} days from ${META.companies.length.toLocaleString()} companies.`;
+  $("lede").textContent = `New US job postings from ${META.companies.length.toLocaleString()} companies' career sites, refreshed every morning. Pick your roles and locations; your settings stay in this browser. Free and open source.`;
+  render();
+}
+
+function isNew(j) { return visit.prev ? j.seen > visit.prev : j.seen === META?.generated.slice(0, 10); }
+
+function filtered() {
+  if (view === "saved") return JOBS.filter(j => saved.has(j.key));
+  const roleRe = anyRe([...S.roles.flatMap(r => ROLES[r] || []), ...words(S.kw).map(reEsc)]);
+  const noRe = anyRe(words(S.nokw).map(reEsc));
+  const lvl = S.levels.filter(l => LEVELS[l]).map(l => LEVELS[l]);
+  const lvlRe = anyRe(lvl), wantsMid = S.levels.includes("Mid (no title level)");
+  const allLvl = anyRe(Object.values(LEVELS).filter(Boolean));
+  const places = words(S.places).map(placeRe), placeRx = anyRe(places);
+  const minpay = Number(S.minpay) || 0, maxAge = Math.min(Number(S.age), 14);
+  const q = $("q").value.trim().toLowerCase();
+  return JOBS.filter(j => {
+    if (daysAgo(j.posted || j.seen) > maxAge) return false;
+    if (roleRe && !roleRe.test(j.title)) return false;
+    if (noRe && noRe.test(j.title)) return false;
+    if (S.levels.length) {
+      const hit = (lvlRe && lvlRe.test(j.title)) || (wantsMid && !allLvl.test(j.title));
+      if (!hit) return false;
+    }
+    if (S.remote || placeRx) {
+      if (!((S.remote && j.remote) || (placeRx && placeRx.test(j.loc)))) return false;
+    }
+    if (minpay && (j.smax ? j.smax < minpay : !S.nopay)) return false;
+    if (!S.nopay && !j.smax) return false;
+    if (S.onlynew && !isNew(j)) return false;
+    if (q && !(j.title.toLowerCase().includes(q) || j.company.toLowerCase().includes(q))) return false;
+    return true;
+  });
+}
+
+function sortJobs(list) {
+  const by = { new: (a, b) => (b.posted || b.seen).localeCompare(a.posted || a.seen),
+    pay: (a, b) => (b.smax || 0) - (a.smax || 0),
+    co: (a, b) => a.company.localeCompare(b.company) || a.title.localeCompare(b.title) }[S.sort];
+  return list.sort(by);
+}
+
+function card(j) {
+  const pay = j.smax ? (j.smin && j.smin !== j.smax ? money(j.smin) + "–" + money(j.smax) : money(j.smax)) : "";
+  const pills = [j.remote ? "Remote" : j.work].filter(Boolean).map(p => `<span class="pill">${esc(p)}</span>`).join("");
+  return `<article class="job" data-key="${esc(j.key)}">
+    <div>
+      <h3><a href="${esc(j.url)}" target="_blank" rel="noopener">${esc(j.title)}</a>${isNew(j) ? '<span class="badge new">NEW</span>' : ""}</h3>
+      <div><span class="co">${esc(j.company)}</span> <span class="meta">· ${esc(j.loc.length > 110 ? j.loc.slice(0, 110) + "…" : j.loc)}</span></div>
+      <div>${pills}</div>
+    </div>
+    <div class="side"><div class="money">${esc(pay)}</div><div class="meta">${esc(fmtDate(j.posted || j.seen))}</div></div>
+    <div class="actions">
+      <a class="btn small primary" href="${esc(j.apply)}" target="_blank" rel="noopener">Apply ↗</a>
+      <button class="btn small" data-act="copy" type="button">Copy description</button>
+      <button class="btn small star" data-act="save" type="button" aria-pressed="${saved.has(j.key)}">${saved.has(j.key) ? "★ Saved" : "☆ Save"}</button>
+    </div>
+  </article>`;
+}
+
+function render(keepPage) {
+  if (!META) return;
+  if (!keepPage) shown = PAGE;
+  current = sortJobs(filtered());
+  const nNew = current.filter(isNew).length;
+  $("count").innerHTML = `${current.length.toLocaleString()} ${view === "saved" ? "saved" : "matches"}` +
+    (view === "all" && nNew ? `<small>${nNew.toLocaleString()} new since your last visit</small>` : "");
+  $("savedcount").textContent = saved.size ? `(${saved.size})` : "";
+  $("list").innerHTML = current.length ? current.slice(0, shown).map(card).join("")
+    : `<div class="empty">${view === "saved" ? "Nothing saved yet. Use ☆ Save on any job." : "No jobs match these filters. Try more roles, a wider date range, or adding Remote."}</div>`;
+  $("more").hidden = current.length <= shown;
+  $("more").textContent = `Show more (${(current.length - shown).toLocaleString()} left)`;
+}
+
+// Standard link formats; the dataset only stores links that differ. Keep in sync with core.default_urls().
+function urlsFor(ats, slug, id, host) {
+  if (ats === "ashby") { const u = `https://jobs.ashbyhq.com/${slug}/${id}`; return [u, u + "/application"]; }
+  if (ats === "lever") { const u = `https://jobs.lever.co/${slug}/${id}`; return [u, u + "/apply"]; }
+  if (ats === "greenhouse") { const u = `https://job-boards.greenhouse.io/${slug}/jobs/${id}`; return [u, u]; }
+  if (ats === "workday") { const u = `https://${host}/${slug.split("/").slice(1).join("/")}${id}`; return [u, u]; }
+  if (ats === "smartrecruiters") { const u = `https://jobs.smartrecruiters.com/${slug}/${id}`; return [u, u]; }
+  return [null, null];
+}
+
+function htmlToText(html) {
+  const doc = new DOMParser().parseFromString(html || "", "text/html");
+  doc.querySelectorAll("br").forEach(b => b.replaceWith("\n"));
+  doc.querySelectorAll("p,div,h1,h2,h3,h4,ul,ol,tr").forEach(b => b.append("\n"));
+  doc.querySelectorAll("li").forEach(b => b.prepend("- "));
+  return (doc.body.textContent || "").replace(/[ \t]+/g, " ").replace(/\n\s*\n+/g, "\n\n").trim();
+}
+const unescape = s => new DOMParser().parseFromString(s || "", "text/html").documentElement.textContent;
+const getJSON = url => fetch(url).then(r => r.ok ? r.json() : null).catch(() => null);
+
+// Workday descriptions are hosted with the dataset (Workday doesn't allow browser requests);
+// the other boards let us fetch a posting's description directly. Keep in sync with sources.fetch_description().
+async function descriptionFor(j) {
+  const once = (k, fn) => descCache[k] || (descCache[k] = fn());
+  try {
+    if (j.file) return (await once(j.file, () => getJSON(`${DATA}/desc/${j.file}`)) || {})[j.id] || "";
+    if (j.ats === "greenhouse") {
+      const d = await getJSON(`https://boards-api.greenhouse.io/v1/boards/${j.slug}/jobs/${j.id}`);
+      return htmlToText(unescape(d?.content));
+    }
+    if (j.ats === "lever") {
+      const d = await getJSON(`https://api.lever.co/v0/postings/${j.slug}/${j.id}`);
+      if (!d) return "";
+      return [d.descriptionPlain, ...(d.lists || []).map(l => l.text + "\n" + htmlToText(l.content)), d.additionalPlain]
+        .filter(Boolean).join("\n\n").trim();
+    }
+    if (j.ats === "ashby") {
+      const board = await once("ashby:" + j.slug, () => getJSON(`https://api.ashbyhq.com/posting-api/job-board/${j.slug}`));
+      const d = (board?.jobs || []).find(x => x.id === j.id);
+      return d ? (d.descriptionPlain || htmlToText(d.descriptionHtml)) : "";
+    }
+    if (j.ats === "smartrecruiters") {
+      const d = await getJSON(`https://api.smartrecruiters.com/v1/companies/${j.slug}/postings/${j.id}`);
+      const s = d?.jobAd?.sections || {};
+      return ["companyDescription", "jobDescription", "qualifications", "additionalInformation"]
+        .filter(k => s[k]?.text).map(k => (s[k].title || "") + "\n" + htmlToText(s[k].text)).join("\n\n").trim();
+    }
+  } catch (e) { /* fall through */ }
+  return "";
+}
+
+async function copyText(text) {
+  try { await navigator.clipboard.writeText(text); return true; }
+  catch {
+    const ta = document.createElement("textarea"); ta.value = text; document.body.appendChild(ta); ta.select();
+    const ok = document.execCommand("copy"); ta.remove(); return ok;
+  }
+}
+
+// ---------------------------------------------------------------- controls
+function syncControls() {
+  for (const [id, key] of [["kw","kw"],["nokw","nokw"],["places","places"],["minpay","minpay"],["age","age"],["sort","sort"]]) $(id).value = S[key];
+  for (const [id, key] of [["remote","remote"],["nopay","nopay"],["onlynew","onlynew"]]) $(id).checked = S[key];
+  document.querySelectorAll("#roles .chip").forEach(b => b.setAttribute("aria-pressed", S.roles.includes(b.dataset.v)));
+  document.querySelectorAll("#levels .chip").forEach(b => b.setAttribute("aria-pressed", S.levels.includes(b.dataset.v)));
+}
+function save() { store.set("settings", S); render(); }
+function chips(el, names, key) {
+  el.innerHTML = names.map(n => `<button class="chip" type="button" data-v="${esc(n)}" aria-pressed="false">${esc(n)}</button>`).join("");
+  el.addEventListener("click", e => {
+    const b = e.target.closest(".chip"); if (!b) return;
+    const v = b.dataset.v, set = new Set(S[key]);
+    set.has(v) ? set.delete(v) : set.add(v);
+    S[key] = [...set]; b.setAttribute("aria-pressed", set.has(v)); save();
+  });
+}
+chips($("roles"), Object.keys(ROLES), "roles");
+chips($("levels"), Object.keys(LEVELS), "levels");
+let timer;
+for (const [id, key] of [["kw","kw"],["nokw","nokw"],["places","places"],["minpay","minpay"]])
+  $(id).addEventListener("input", e => { S[key] = e.target.value; clearTimeout(timer); timer = setTimeout(save, 200); });
+for (const [id, key] of [["age","age"],["sort","sort"]]) $(id).addEventListener("change", e => { S[key] = e.target.value; save(); });
+for (const [id, key] of [["remote","remote"],["nopay","nopay"],["onlynew","onlynew"]]) $(id).addEventListener("change", e => { S[key] = e.target.checked; save(); });
+$("q").addEventListener("input", () => { clearTimeout(timer); timer = setTimeout(render, 150); });
+$("reset").addEventListener("click", () => { S = Object.assign({}, DEFAULTS); syncControls(); save(); });
+$("more").addEventListener("click", () => { shown += PAGE; render(true); });
+for (const [id, v] of [["tab-all", "all"], ["tab-saved", "saved"]]) $(id).addEventListener("click", () => {
+  view = v; $("tab-all").setAttribute("aria-selected", v === "all"); $("tab-saved").setAttribute("aria-selected", v === "saved"); render();
+});
+
+$("list").addEventListener("click", async e => {
+  const b = e.target.closest("button[data-act]"); if (!b) return;
+  const j = JOBS.find(x => x.key === b.closest(".job").dataset.key); if (!j) return;
+  if (b.dataset.act === "save") {
+    saved.has(j.key) ? saved.delete(j.key) : saved.add(j.key);
+    store.set("saved", [...saved]);
+    b.setAttribute("aria-pressed", saved.has(j.key)); b.textContent = saved.has(j.key) ? "★ Saved" : "☆ Save";
+    $("savedcount").textContent = saved.size ? `(${saved.size})` : "";
+    if (view === "saved") render(true);
+  } else if (b.dataset.act === "copy") {
+    b.textContent = "Copying…";
+    const d = await descriptionFor(j);
+    const ok = await copyText(`${j.title}\n${j.company} — ${j.loc}\n${j.url}\n\n${d || "(Description not available — open the posting.)"}`);
+    b.textContent = "Copy description";
+    toast(ok ? "Job description copied" : "Couldn't copy — open the posting instead");
+  }
+});
+
+const PROMPT = `I'm attaching a JSON file of job postings (from JobScout) and my resume.
+For each job, score how well I fit it from 1-10 based on my experience, skills and seniority, and note the 2-3 biggest reasons.
+Then give me a ranked table of the jobs scoring 7 or higher with: score, title, company, location, salary, and the apply_url as a clickable link.
+Flag any job that looks like a stretch but worth applying to anyway.`;
+$("copyprompt").addEventListener("click", async () => toast(await copyText(PROMPT) ? "Prompt copied" : "Couldn't copy"));
+
+$("export").addEventListener("click", async () => {
+  const list = current.slice(0, EXPORT_MAX);
+  if (!list.length) return toast("Nothing to export");
+  const btn = $("export"); btn.disabled = true; btn.textContent = "Preparing…";
+  const jobs = await Promise.all(list.map(async j => ({
+    company: j.company, title: j.title, location: j.loc, remote: j.remote, work_type: j.work,
+    salary_min: j.smin, salary_max: j.smax, posted: j.posted, url: j.url, apply_url: j.apply,
+    description: await descriptionFor(j) })));
+  const blob = new Blob([JSON.stringify({ exported: new Date().toISOString(), source: "JobScout",
+    filters: { roles: S.roles, keywords: S.kw, levels: S.levels, remote: S.remote, places: S.places,
+               min_salary: S.minpay, posted_within_days: S.age }, count: jobs.length, jobs }, null, 1)], { type: "application/json" });
+  const a = document.createElement("a"); a.href = URL.createObjectURL(blob); a.download = `jobscout_${today}.json`;
+  document.body.appendChild(a); a.click(); a.remove(); setTimeout(() => URL.revokeObjectURL(a.href), 5000);
+  btn.disabled = false; btn.textContent = "Export for AI";
+  toast(`Exported ${jobs.length} jobs${current.length > EXPORT_MAX ? " (top " + EXPORT_MAX + ")" : ""}`);
+});
+
+// Theme toggle: system by default, remembered once chosen.
+const theme = store.get("theme", null);
+if (theme) document.documentElement.dataset.theme = theme;
+$("theme").addEventListener("click", () => {
+  const cur = document.documentElement.dataset.theme || (matchMedia("(prefers-color-scheme: light)").matches ? "light" : "dark");
+  const next = cur === "light" ? "dark" : "light";
+  document.documentElement.dataset.theme = next; store.set("theme", next);
+});
+
+if (!store.get("helpSeen", false)) { $("help").open = true; store.set("helpSeen", true); }
+syncControls();
+load();
+})();
+</script>
+</body>
+</html>

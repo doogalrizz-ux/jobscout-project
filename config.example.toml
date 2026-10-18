@@ -1,0 +1,59 @@
+# JobScout personal filter config. Copied to config.toml on first run; edit that copy.
+# The values below are only an example (project/program management roles around Chicago).
+# All keyword matching is case-insensitive; entries are regular-expression fragments.
+
+[source]
+# Where the daily published dataset lives. Leave empty to always scan locally (slow).
+data_url = "https://doogalrizz-ux.github.io/jobscout-project/data"
+# If the published data is older than this, do a local scan instead.
+max_age_hours = 30
+
+[summary]
+# Plain-English description of these filters, copied into the JSON for your AI assistant.
+roles = "Project / Program Manager (Senior, Lead, Manager)"
+locations = "Fully remote (US) or Chicago area (on-site or hybrid)"
+salary = "Any"
+
+[roles]
+# A title must match at least one of these to be kept.
+include = [
+  "project manager",
+  "program manager",
+  "technical program",
+  "delivery manager",
+  "\\bpmo\\b",
+  "scrum master",
+]
+# A title matching any of these is dropped, even if it matched above.
+exclude = [
+  "\\bintern", "internship", "\\bjunior\\b", "\\bjr\\.?\\b", "entry.level", "new grad",
+  "\\bassociate\\b(?!\\s+director)", "\\b(i|ii|1|2)\\b\\s*($|,|-|–|\\(|/)", "apprentice",
+  "construction", "contract", "part.time", "freelance",
+]
+
+[seniority]
+# Titles matching these get tagged with a level in the output.
+levels = ["principal", "staff", "lead", "senior", "sr", "manager", "head of", "director"]
+# true = drop titles with no level keyword (e.g. plain "Project Manager").
+require_level = false
+
+[location]
+# The dataset only holds US jobs. Keep on-site/hybrid jobs whose location mentions any of these...
+local = [
+  "chicago", "evanston", "oak brook", "schaumburg", "naperville", "deerfield", ',\s*il\b', "illinois",
+]
+local_label = "Chicago"
+# ...plus any US remote job.
+remote = true
+
+[salary]
+# Drop a job only if it lists a salary AND the top of the range is at or below this (0 = off).
+# Jobs with no salary listed are always kept.
+min_max_salary = 0
+
+[output]
+# On a job's first sighting, only report it if it was posted within this many days.
+# Stops a newly-added company from dumping its 6-month-old backlog on you.
+max_age_days = 10
+# Max characters of job description to keep in the JSON. 0 = no limit (full text).
+description_chars = 0

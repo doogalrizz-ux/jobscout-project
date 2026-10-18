@@ -1,0 +1,71 @@
+name: Daily scan
+
+on:
+  schedule:
+    - cron: "0 9 * * *"   # 09:00 UTC = 5 AM Eastern (4 AM in winter)
+  workflow_dispatch:
+    inputs:
+      discover:
+        description: "Refresh the company registry first, including Common Crawl (slow: can take an hour+)"
+        type: boolean
+        default: false
+
+permissions:
+  contents: write   # commit registry updates
+  pages: write
+  id-token: write
+
+concurrency:
+  group: daily-scan
+  cancel-in-progress: false
+
+jobs:
+  scan:
+    runs-on: ubuntu-latest
+    timeout-minutes: 300
+    environment:
+      name: github-pages
+      url: ${{ steps.deploy.outputs.page_url }}
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
+      # Workday/SmartRecruiters job details, so each job is fetched only once
+      - uses: actions/cache@v4
+        with:
+          path: state
+          key: details-${{ github.run_id }}
+          restore-keys: details-
+
+      # Mondays: quick refresh from HN + seeds.txt. On request: full refresh including Common Crawl.
+      - name: Refresh company registry
+        run: |
+          if [ "${{ inputs.discover }}" = "true" ]; then
+            python -m jobscout discover
+          elif [ "$(date +%u)" = "1" ]; then
+            python -m jobscout discover --no-common-crawl
+          fi
+          if [ -n "$(git status --porcelain registry)" ]; then
+            git config user.name "github-actions[bot]"
+            git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+            git add registry
+            git commit -m "Refresh company registry"
+            git push
+          fi
+
+      - name: Scan boards and build dataset
+        run: |
+          python -m jobscout publish public \
+            --prev-url "https://${{ github.repository_owner }}.github.io/${{ github.event.repository.name }}/data/jobs.json"
+          cp web/index.html public/index.html
+          du -sh public/data
+
+      - uses: actions/configure-pages@v5
+      - uses: actions/upload-pages-artifact@v3
+        with:
+          path: public
+      - id: deploy
+        uses: actions/deploy-pages@v4
