@@ -2,7 +2,10 @@ name: Daily scan
 
 on:
   schedule:
-    - cron: "0 9 * * *"   # 09:00 UTC = 5 AM Eastern (4 AM in winter)
+    # GitHub sometimes delays or drops scheduled runs (especially on the hour), so there are two:
+    # the second only scans if the first didn't publish today's data.
+    - cron: "23 9 * * *"    # 09:23 UTC = 5:23 AM Eastern (4:23 in winter)
+    - cron: "23 11 * * *"   # backup
   workflow_dispatch:
     inputs:
       discover:
@@ -20,7 +23,24 @@ concurrency:
   cancel-in-progress: false
 
 jobs:
+  check:
+    runs-on: ubuntu-latest
+    outputs:
+      skip: ${{ steps.fresh.outputs.skip }}
+    steps:
+      - id: fresh
+        name: Skip scheduled runs if today's data is already published
+        run: |
+          url="https://${{ github.repository_owner }}.github.io/${{ github.event.repository.name }}/data/jobs.json"
+          published=$(curl -fsS "$url" | python3 -c "import json,sys; print(json.load(sys.stdin)['generated'][:10])" || echo none)
+          echo "published: $published, today: $(date -u +%F)"
+          if [ "${{ github.event_name }}" = "schedule" ] && [ "$published" = "$(date -u +%F)" ]; then
+            echo "skip=true" >> "$GITHUB_OUTPUT"
+          fi
+
   scan:
+    needs: check
+    if: needs.check.outputs.skip != 'true'
     runs-on: ubuntu-latest
     timeout-minutes: 300
     environment:
