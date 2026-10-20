@@ -179,6 +179,8 @@ h1{font-size:22px;margin:0 0 4px}h2{font-size:16px;margin:28px 0 10px}
 .co{font-weight:600}.meta{color:var(--muted);font-size:13px}.right{text-align:right;white-space:nowrap}
 .money{color:var(--money);font-weight:600;font-size:13px}
 .chip{display:inline-block;background:var(--chip);border-radius:4px;padding:0 6px;font-size:12px;margin-right:4px}
+.stale{background:#fff4d6;color:#6b4a00;border:1px solid #e8c766;border-radius:6px;padding:8px 12px;font-size:14px}
+@media (prefers-color-scheme:dark){.stale{background:#3a2f12;color:#f3d98b;border-color:#6b5520}}
 details summary{cursor:pointer;color:var(--muted)}footer{color:var(--muted);font-size:12px;margin-top:32px}
 @media (max-width:600px){.job{grid-template-columns:1fr}.right{text-align:left}}
 """
@@ -200,11 +202,18 @@ def write_html(path, new, still_open, stats):
     today = date.today().strftime("%A, %B %d, %Y")
     body = "\n".join(job_html(j) for j in new) or '<p class="sub">No new matches today.</p>'
     older = "\n".join(job_html(j) for j in still_open)
+    # Say how fresh the data is, and warn loudly when the morning scan hasn't published today's data.
+    data_time = datetime.fromisoformat(stats["data_generated"]).astimezone()
+    data_label = f"Job data from {data_time.strftime('%a %b %d, %I:%M %p').replace(' 0', ' ')}"
+    stale = "" if data_time.date() == date.today() else (
+        '<p class="stale">⚠ This job data isn\'t from today: the morning scan hasn\'t published yet, '
+        'so "new" only covers what was already known. Run the report again once today\'s scan is up.</p>')
     page = f"""<!doctype html><html lang="en"><head><meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1"><title>JobScout {date.today().isoformat()}</title>
 <style>{PAGE_CSS}</style></head><body><main>
 <h1>JobScout · {len(new)} new matches</h1>
-<div class="sub">{today} · {stats['companies']:,} companies · {stats['scanned']:,} US jobs · {stats['matched']} match your filters</div>
+<div class="sub">{today} · {data_label} · {stats['companies']:,} companies · {stats['scanned']:,} US jobs · {stats['matched']} match your filters</div>
+{stale}
 <input class="filter" id="q" placeholder="Filter by company, title, location…" autofocus>
 <h2>New today ({len(new)})</h2>{body}
 <details><summary>Older matches, still open ({len(still_open)})</summary>{older}</details>
@@ -263,7 +272,8 @@ def run(open_report=False):
 
     attach_descriptions(new, base)
     OUT.mkdir(exist_ok=True)
-    stats = {"companies": len(index["companies"]), "scanned": len(all_jobs), "matched": len(matched)}
+    stats = {"companies": len(index["companies"]), "scanned": len(all_jobs), "matched": len(matched),
+             "data_generated": index["generated"]}
     payload = {
         "generated_at": datetime.now().isoformat(timespec="seconds"),
         "data_generated": index["generated"],
