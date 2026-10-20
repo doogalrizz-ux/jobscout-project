@@ -198,16 +198,21 @@ def job_html(job):
             f'<div class="meta">{e(job["ats"])}</div></div></div>')
 
 
+def stale_notice(data_generated):
+    """A warning box when the morning scan hasn't published today's data yet; empty otherwise."""
+    if datetime.fromisoformat(data_generated).astimezone().date() == date.today():
+        return ""
+    return ('<p class="stale">⚠ This job data isn\'t from today: the morning scan hasn\'t published yet, '
+            'so "new" only covers what was already known. Run the report again once today\'s scan is up.</p>')
+
+
 def write_html(path, new, still_open, stats):
     today = date.today().strftime("%A, %B %d, %Y")
     body = "\n".join(job_html(j) for j in new) or '<p class="sub">No new matches today.</p>'
     older = "\n".join(job_html(j) for j in still_open)
-    # Say how fresh the data is, and warn loudly when the morning scan hasn't published today's data.
     data_time = datetime.fromisoformat(stats["data_generated"]).astimezone()
     data_label = f"Job data from {data_time.strftime('%a %b %d, %I:%M %p').replace(' 0', ' ')}"
-    stale = "" if data_time.date() == date.today() else (
-        '<p class="stale">⚠ This job data isn\'t from today: the morning scan hasn\'t published yet, '
-        'so "new" only covers what was already known. Run the report again once today\'s scan is up.</p>')
+    stale = stale_notice(stats["data_generated"])
     page = f"""<!doctype html><html lang="en"><head><meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1"><title>JobScout {date.today().isoformat()}</title>
 <style>{PAGE_CSS}</style></head><body><main>
@@ -285,6 +290,49 @@ def run(open_report=False):
         (OUT / f"{name}.json").write_text(json.dumps(payload, indent=1, ensure_ascii=False), encoding="utf-8")
         write_html(OUT / f"{name}.html", new, still_open, stats)
     print(f"Done: {len(all_jobs):,} US jobs, {len(matched)} match, {len(new)} new.")
-    print(f"  {OUT / 'latest.html'}")
+    report = OUT / "latest.html"
+    if cfg.get("scoring", {}).get("enabled"):
+        report = score_report(new, cfg, today, stats["data_generated"]) or report
+    print(f"  {report}")
     if open_report:
-        webbrowser.open((OUT / "latest.html").as_uri())
+        webbrowser.open(report.as_uri())
+
+
+def salary_text(job):
+    lo, hi = job["salary_min"], job["salary_max"]
+    if lo and hi and lo != hi:
+        return f"${lo:,.0f} – ${hi:,.0f}"
+    return f"${(hi or lo):,.0f}" if (hi or lo) else "Salary not listed"
+
+
+def score_report(new, cfg, today, data_generated):
+    """Optional AI-scored page (see scoring.py). Returns its path, or None to fall back to the plain report."""
+    from . import scoring
+    cache_path = OUT / "scores_cache.json"  # scores by job key, so same-day reruns don't rescore
+    try:
+        cache = json.loads(cache_path.read_text(encoding="utf-8")) if cache_path.exists() else {}
+    except (OSError, json.JSONDecodeError):
+        cache = {}
+    records = [{"key": j["key"], "company": j["company"], "title": j["title"], "location": j["loc_label"],
+                "salary_text": salary_text(j), "posted": j["posted"], "url": j["url"],
+                "apply_url": j["apply_url"] or j["url"], "description": j.get("description", "")} for j in new]
+    try:
+        unique, dupes = scoring.dedupe(records)
+        todo = [r for r in unique if r["key"] not in cache]
+        if todo:
+            print(f"Scoring {len(todo)} job(s) with Claude...")
+            scored, _ = scoring.score_jobs(todo, cfg)
+            for r in scored:
+                cache[r["key"]] = {"score": r["score"], "reason": r["reason"], "flags": r["flags"], "date": today}
+            cache_path.write_text(json.dumps(cache, indent=1, ensure_ascii=False), encoding="utf-8")
+        for r in unique:
+            r.update({k: cache[r["key"]][k] for k in ("score", "reason", "flags")} if r["key"] in cache
+                     else {"score": 0, "reason": "Not scored (over the daily limit).", "flags": ["not_scored"]})
+        path = OUT / f"scored_{today}.html"
+        counts = scoring.write_scored_html(path, unique, dupes, today, stale_notice(data_generated))
+        shutil.copy(path, OUT / "latest_scored.html")
+        print(f"Scored: {counts['strong_fit']} Strong Fit, {counts['reach']} Reach, {counts['skip']} Skip")
+        return OUT / "latest_scored.html"
+    except Exception as e:  # never lose the morning report over scoring
+        print(f"Scoring failed, showing the plain report instead: {e}")
+        return None

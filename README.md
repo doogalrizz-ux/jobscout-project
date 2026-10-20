@@ -80,6 +80,14 @@ places and salary floor. On Windows, `run_daily.bat` can be scheduled with Task 
 schtasks /create /tn JobScout /sc weekly /d MON,TUE,WED,THU,FRI /st 07:30 /tr "\"C:\path\to\JobScout\run_daily.bat\""
 ```
 
+## Optional: AI scoring (personal, unsupported)
+
+`jobscout/scoring.py` can score each morning's new matches with Claude and open a ranked page
+(score, tier, reasons, flags) instead of the plain report. It's a personal add-on, so it's off by
+default and comes with no support. It uses Claude Code (`claude -p`, all tools disabled) on your
+own Claude subscription, so no API key is involved. Profile files go in `private/`, which is
+git-ignored. See the module's docstring and the `[scoring]` section of `config.example.toml`.
+
 ## Other commands
 
 ```

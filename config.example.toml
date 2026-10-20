@@ -57,3 +57,14 @@ min_max_salary = 0
 max_age_days = 10
 # Max characters of job description to keep in the JSON. 0 = no limit (full text).
 description_chars = 0
+
+[scoring]
+# Optional personal add-on, unsupported (see jobscout/scoring.py). Scores each morning's new jobs
+# with Claude Code (`claude -p`, your Claude subscription, no API key) against profile files in
+# private/ and a rubric from your own Claude skill, then opens a ranked page instead of the report.
+enabled = false
+skill = "your-scoring-skill"           # Claude skill whose "## Scoring rubric" section is used
+profile_files = ["profile.md"]         # files in private/ describing your background
+batch_size = 15                        # jobs per Claude call
+max_jobs = 60                          # cap per day
+# model = "sonnet"                     # optional; default is Claude Code's default model

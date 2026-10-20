@@ -11,3 +11,5 @@ state/
 __pycache__/
 # Wrangler local cache (contains Cloudflare account info)
 .wrangler/
+# Personal profile files for AI scoring (job history, stories, targets): never commit
+private/
