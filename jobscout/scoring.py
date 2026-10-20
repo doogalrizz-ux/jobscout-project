@@ -49,12 +49,21 @@ class ScoringError(Exception):
 
 # ---------------------------------------------------------------- inputs
 
-def find_rubric(skill_name):
-    """The '## Scoring rubric' section of the named skill's SKILL.md."""
+def find_rubric(skill_name, whole_skill=False):
+    """Scoring guidance from the named skill's SKILL.md.
+
+    whole_skill=False: just the '## Scoring rubric' section.
+    whole_skill=True: the whole skill minus front matter and any '## Builder script' section
+    (the page is built here, not by the model).
+    """
     paths = sorted(SKILLS_DIR.rglob(f"{skill_name}/SKILL.md"), key=lambda p: p.stat().st_mtime, reverse=True)
     if not paths:
         raise ScoringError(f"skill '{skill_name}' not found under {SKILLS_DIR}")
     text = paths[0].read_text(encoding="utf-8")
+    if whole_skill:
+        text = re.sub(r"\A---.*?^---\s*", "", text, flags=re.S | re.M)
+        text = re.sub(r"^## Builder script.*?(?=^## |\Z)", "", text, flags=re.S | re.M)
+        return text.strip()
     m = re.search(r"^## Scoring rubric.*?(?=^## )", text, re.S | re.M)
     if not m:
         raise ScoringError(f"no '## Scoring rubric' section in {paths[0]}")
@@ -132,7 +141,11 @@ def score_batch(batch, profile, rubric, model=None, timeout=900):
 def score_jobs(jobs, cfg):
     """Return (unique jobs with score/reason/flags added, duplicates removed)."""
     sc = cfg.get("scoring", {})
-    rubric = find_rubric(sc.get("skill", "daily-job-match-scoring"))
+    rubric = find_rubric(sc.get("skill", "daily-job-match-scoring"), whole_skill=sc.get("whole_skill", False))
+    if sc.get("whole_skill"):
+        rubric += ("\n\n(Running as an automated step: the profile files referenced above are provided in "
+                   "<profile>; ignore instructions about reading memory, writing files, running scripts, "
+                   "building pages or replying in chat. Just return the scores.)")
     profile = load_profile(sc.get("profile_files", ["job-search.md", "career-stories.md"]))
     unique, dupes = dedupe(jobs)
     unique = unique[: sc.get("max_jobs", 60)]

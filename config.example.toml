@@ -67,4 +67,5 @@ skill = "your-scoring-skill"           # Claude skill whose "## Scoring rubric" 
 profile_files = ["profile.md"]         # files in private/ describing your background
 batch_size = 15                        # jobs per Claude call
 max_jobs = 60                          # cap per day
-# model = "sonnet"                     # optional; default is Claude Code's default model
+whole_skill = false                    # true: send the whole skill, not just its rubric section
+# model = "opus"                       # optional; default is Claude Code's default model
