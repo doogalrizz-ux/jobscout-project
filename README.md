@@ -43,6 +43,9 @@ GitHub Action, every morning (free)
 - **`desc/<company>.json`** holds the full descriptions, which the page loads only when needed.
 - **Detail cache:** Workday and SmartRecruiters need one request per job for details, so those are
   cached between runs.
+- **Reliable start:** GitHub's scheduled runs can be delayed or skipped, so `trigger/` holds a tiny
+  Cloudflare Worker that starts the scan at 5:30 and 6:30 AM Eastern if today's data isn't
+  published yet. It's optional for forks: the workflow's own schedule still works, just less reliably.
 
 Python 3.11+, standard library only. Nothing to `pip install`.
 

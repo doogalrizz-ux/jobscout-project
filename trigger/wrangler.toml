@@ -1,0 +1,15 @@
+# Cloudflare Worker that starts the daily GitHub scan on a reliable schedule.
+# Deploy: cd trigger && wrangler deploy
+# Token:  wrangler secret put GITHUB_TOKEN   (fine-grained, Actions read/write on this repo only)
+name = "jobscout-trigger"
+main = "src/index.js"
+compatibility_date = "2026-10-01"
+workers_dev = false   # no public URL; it only runs on the schedule below
+
+[triggers]
+crons = ["30 9 * * *", "30 10 * * *"]   # 5:30 and 6:30 AM Eastern (an hour earlier in winter)
+
+[vars]
+OWNER = "doogalrizz-ux"
+REPO = "jobscout-project"
+WORKFLOW = "daily.yml"
