@@ -197,13 +197,25 @@ NON_US_RE = re.compile(r"\b(" + "|".join([
     "santiago", "lima", "cdmx", "guadalajara", "monterrey", "ontario", "quebec", "british columbia",
     "alberta",
 ]) + r")\b", re.I)
+# Workday-style ISO country codes: "Remote (IND)", "Remote-GBR", "Toronto (CAN)". Codes are matched
+# case-sensitively and only in those spots, so street addresses and acronyms don't trip it.
+COUNTRY_CODE_RE = re.compile(r"(?:\(|(?i:\bremote)\s*[-–:,]\s*)(" + "|".join([
+    "IND", "CAN", "GBR", "AUS", "NZL", "MEX", "BRA", "ARG", "COL", "CHL", "PER", "URY", "CRI", "DEU",
+    "FRA", "ESP", "PRT", "ITA", "IRL", "NLD", "BEL", "CHE", "AUT", "POL", "ROU", "CZE", "SWE", "NOR",
+    "DNK", "FIN", "UKR", "TUR", "ISR", "ARE", "SAU", "EGY", "ZAF", "NGA", "KEN", "JPN", "CHN", "HKG",
+    "TWN", "KOR", "SGP", "PHL", "MYS", "IDN", "VNM", "THA", "PAK",
+]) + r")\b")
 REMOTE_RE = re.compile(r"\b(remote|anywhere|distributed|work from home|wfh|virtual|telecommute)\b", re.I)
 BARE_US_RE = re.compile(r"^\s*(united states( of america)?|usa|us|u\.s\.)\s*$", re.I)
 
 
+def _non_us(s):
+    return bool(NON_US_RE.search(s) or COUNTRY_CODE_RE.search(s))
+
+
 def _is_us_string(s):
     pos = bool(US_RE.search(s) or US_ABBR_RE.search(s))
-    if pos and NON_US_RE.search(s) and not EXPLICIT_US_RE.search(s):
+    if pos and _non_us(s) and not EXPLICIT_US_RE.search(s):
         # e.g. "New Mexico" is fine, but "Berlin, DE" or "Toronto, ON, Canada" is not
         return bool(re.search(r"new mexico", s, re.I)) and not re.search(r"mexico city", s, re.I)
     return pos
@@ -222,11 +234,11 @@ def classify_location(locations, remote_flag=False):
             continue
         if REMOTE_RE.search(s) or BARE_US_RE.match(s):
             any_remote_string = True
-            if _is_us_string(s) or not NON_US_RE.search(s):
+            if _is_us_string(s) or not _non_us(s):
                 us_remote = True
         elif _is_us_string(s):
             us_onsite = True
     if remote_flag and not any_remote_string:
-        if us_onsite or not any(s for s in locations) or not any(NON_US_RE.search(s) for s in locations if s):
+        if us_onsite or not any(s for s in locations) or not any(_non_us(s) for s in locations if s):
             us_remote = True
     return (us_onsite or us_remote), us_remote

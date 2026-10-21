@@ -20,7 +20,7 @@ from pathlib import Path
 
 from concurrent.futures import ThreadPoolExecutor
 
-from .core import default_urls, http_json
+from .core import STATES, default_urls, http_json
 from .publish import publish
 from .sources import fetch_description
 
@@ -30,6 +30,9 @@ CONFIG_EXAMPLE = ROOT / "config.example.toml"
 DB = ROOT / "jobscout.db"
 OUT = ROOT / "output"
 LOCAL_PUBLIC = ROOT / "public"
+# A two-letter state code after a separator, followed by the end, a separator or a ZIP: "Brooklyn Park,MN 55445".
+STATE_CODE_RE = re.compile(r"(?:^|[\s,\-|/(])(" + "|".join(sorted(set(STATES.values())))
+                           + r")(?=\s*(?:$|[,\-|/);]|\d{5}))")
 
 
 def compile_any(patterns):
@@ -53,6 +56,7 @@ class Filters:
         self.require_level = s.get("require_level", False)
         self.local = compile_any(l["local"])
         self.local_label = l.get("local_label", "Local")
+        self.local_states = set(l.get("local_states", []))
         self.allow_remote = l.get("remote", True)
         self.min_max_salary = cfg["salary"]["min_max_salary"]
 
@@ -69,11 +73,20 @@ class Filters:
 
     def location(self, job):
         """A short label like 'Chicago · Hybrid' or 'Remote (US)', or None to reject."""
-        if self.local and self.local.search(job["location"]):
+        if self.local and any(self.local.search(s) and self._in_local_states(s)
+                              for s in job["location"].split(";")):
             return self.local_label + (f" · {job['work']}" if job["work"] and job["work"] != "Remote" else "")
         if self.allow_remote and job["remote"]:
             return "Remote (US)"
         return None
+
+    def _in_local_states(self, s):
+        """False if the location names a state outside local_states ('Brooklyn Park, MN' isn't Brooklyn)."""
+        if not self.local_states:
+            return True
+        named = {code for code in STATE_CODE_RE.findall(s)}
+        named |= {code for name, code in STATES.items() if re.search(rf"\b{name}\b", s, re.I)}
+        return not named or bool(named & self.local_states)
 
     def salary_ok(self, job):
         return job["salary_max"] is None or job["salary_max"] > self.min_max_salary
@@ -314,8 +327,8 @@ def score_report(new, cfg, today, data_generated):
     except (OSError, json.JSONDecodeError):
         cache = {}
     records = [{"key": j["key"], "company": j["company"], "title": j["title"], "location": j["loc_label"],
-                "salary_text": salary_text(j), "posted": j["posted"], "url": j["url"],
-                "apply_url": j["apply_url"] or j["url"], "description": j.get("description", "")} for j in new]
+                "listed_location": j["location"], "salary_text": salary_text(j), "posted": j["posted"],
+                "url": j["url"], "apply_url": j["apply_url"] or j["url"], "description": j.get("description", "")} for j in new]
     try:
         unique, dupes = scoring.dedupe(records)
         todo = [r for r in unique if r["key"] not in cache]

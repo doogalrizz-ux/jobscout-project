@@ -104,7 +104,7 @@ def score_batch(batch, profile, rubric, model=None, timeout=900):
     """Score a list of jobs (each with an 'id') in one headless Claude call."""
     jobs_text = "\n\n".join(
         f'<job id="{j["id"]}">\nCompany: {j["company"]}\nTitle: {j["title"]}\nLocation: {j["location"]}\n'
-        f'Salary: {j["salary_text"]}\nPosted: {j["posted"]}\n\n{j["description"] or "(no description available)"}\n</job>'
+        f'Listed location: {j.get("listed_location") or "n/a"}\nSalary: {j["salary_text"]}\nPosted: {j["posted"]}\n\n{j["description"] or "(no description available)"}\n</job>'
         for j in batch)
     prompt = (f"<profile>\n{profile}\n</profile>\n\n<rubric>\n{rubric}\n</rubric>\n\n"
               f"Score each of the {len(batch)} jobs below with the rubric. Return one entry per job id: "
@@ -146,6 +146,8 @@ def score_jobs(jobs, cfg):
         rubric += ("\n\n(Running as an automated step: the profile files referenced above are provided in "
                    "<profile>; ignore instructions about reading memory, writing files, running scripts, "
                    "building pages or replying in chat. Just return the scores.)")
+    if sc.get("extra_rules"):
+        rubric += "\n\n## Additional rules (these override anything above)\n" + sc["extra_rules"].strip()
     profile = load_profile(sc.get("profile_files", ["job-search.md", "career-stories.md"]))
     unique, dupes = dedupe(jobs)
     unique = unique[: sc.get("max_jobs", 60)]

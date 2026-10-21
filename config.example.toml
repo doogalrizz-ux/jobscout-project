@@ -43,6 +43,8 @@ local = [
   "chicago", "evanston", "oak brook", "schaumburg", "naperville", "deerfield", ',\s*il\b', "illinois",
 ]
 local_label = "Chicago"
+# Optional: drop a local match whose location names any other state ("Aurora, CO" isn't Aurora, IL).
+# local_states = ["IL"]
 # ...plus any US remote job.
 remote = true
 
@@ -69,3 +71,4 @@ batch_size = 15                        # jobs per Claude call
 max_jobs = 60                          # cap per day
 whole_skill = false                    # true: send the whole skill, not just its rubric section
 # model = "opus"                       # optional; default is Claude Code's default model
+# extra_rules = """..."""              # optional; appended to the rubric and overrides it
