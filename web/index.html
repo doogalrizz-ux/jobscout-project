@@ -332,8 +332,8 @@ async function load() {
       apply: r[f.apply] || (r[f.url] ? url : stdApply) };
   });
   const gen = new Date(META.generated);
-  $("stamp").textContent = `Updated ${gen.toLocaleString(undefined, { weekday: "long", month: "long", day: "numeric", hour: "numeric", minute: "2-digit" })} · ${JOBS.length.toLocaleString()} US jobs posted in the last ${META.max_age_days} days from ${META.companies.length.toLocaleString()} companies.`;
-  $("lede").textContent = `New US job postings from ${META.companies.length.toLocaleString()} companies' career sites, refreshed every morning. Pick your roles and locations; your settings stay in this browser. Free and open source.`;
+  $("stamp").textContent = `Updated ${gen.toLocaleString(undefined, { weekday: "long", month: "long", day: "numeric", hour: "numeric", minute: "2-digit" })} · ${JOBS.length.toLocaleString()} US jobs posted in the last ${META.max_age_days} days. ${META.stats.boards.toLocaleString()} company job boards scanned; ${META.companies.length.toLocaleString()} have recent US openings.`;
+  $("lede").textContent = `New US job postings from ${META.stats.boards.toLocaleString()} company job boards, checked every morning. Pick your roles and locations; your settings stay in this browser. Free and open source.`;
   render();
 }
 

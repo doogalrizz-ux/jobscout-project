@@ -14,8 +14,8 @@ import time
 from concurrent.futures import ThreadPoolExecutor
 from datetime import date, timedelta
 
-from .core import (classify_location, html_to_text, http_json, iso_day, parse_salary_text,
-                   pretty_slug)
+from .core import (classify_location, clearly_non_us, html_to_text, http_json, iso_day,
+                   parse_salary_text, pretty_slug)
 
 
 def _job(company, **fields):
@@ -173,8 +173,8 @@ def workday(company, ctx):
             if not path or not p.get("title"):
                 continue
             multi = bool(re.match(r"\d+\s+locations?$", loc_text, re.I))
-            if not multi and not classify_location([loc_text])[0] and not re.search(r"remote", loc_text, re.I):
-                continue  # clearly outside the US; skip the detail call
+            if not multi and clearly_non_us(loc_text):
+                continue  # skip the detail call; unrecognized places like "Main Campus" need its country
             listed.append((p, age, f"workday:{company['slug']}:{path}"))
         if not postings or too_old == len(postings) or len(postings) < page_size:
             break
@@ -183,13 +183,15 @@ def workday(company, ctx):
     # 2. Details (description, all locations, exact date) for jobs we haven't seen before.
     def fetch(path):
         info = (http_json(f"{base}{path}", timeout=45) or {}).get("jobPostingInfo") or {}
+        extra, country = info.get("additionalLocations"), (info.get("country") or {}).get("descriptor") or ""
+        abroad = country and country != "United States of America" and not extra
         return {
-            "locations": [info.get("location") or ""] + list(info.get("additionalLocations") or []),
-            "country": (info.get("country") or {}).get("descriptor") or "",
+            "locations": [info.get("location") or ""] + list(extra or []),
+            "country": country,
             "remote": info.get("remoteType") or "",
             "posted": info.get("startDate") or info.get("postedOnDate"),
             "url": info.get("externalUrl"),
-            "description": html_to_text(info.get("jobDescription"))[:15_000],
+            "description": "" if abroad else html_to_text(info.get("jobDescription"))[:15_000],  # never published
             "time_type": info.get("timeType") or "",
         }
     _fill_details({key: p["externalPath"] for p, _, key in listed}, fetch, ctx, deadline)
@@ -199,6 +201,8 @@ def workday(company, ctx):
         if detail is None:
             continue
         locs = [l for l in detail["locations"] if l] or [p.get("locationsText") or ""]
+        if detail["country"] not in ("", "United States of America") and len(locs) == 1:
+            continue  # the country field beats the text: "Remote - Kuala Lumpur", "Bristol"
         if detail["country"] == "United States of America" and not any(classify_location([l])[0] for l in locs):
             locs.append("United States")
         yield _job(company,

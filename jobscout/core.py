@@ -169,14 +169,41 @@ US_CITIES = [
     "salt lake city", "las vegas", "baltimore", "st. louis", "kansas city", "columbus", "cincinnati",
     "indianapolis", "tampa", "orlando", "jersey city", "hoboken", "irving", "plano", "cambridge, ma",
     "silicon valley", "bay area", "washington, d.c", "washington dc", "basking ridge", "ashburn",
+    "albany", "albuquerque", "anchorage", "ann arbor", "bakersfield", "bellevue", "beverly hills",
+    "boca raton", "boise", "bronx", "buffalo", "burlingame", "chapel hill", "charleston", "chattanooga",
+    "cleveland", "cupertino", "danvers", "east hanover", "el paso", "el segundo", "evendale",
+    "fort worth", "foster city", "fresno", "grand rapids", "greenville", "hartford", "honolulu", "irvine",
+    "jacksonville", "knoxville", "long beach", "long island", "louisville", "mankato", "mclean",
+    "memphis", "milwaukee", "new haven", "new orleans", "newark", "oklahoma city", "omaha", "oxnard",
+    "pasadena", "penn state", "princeton", "rensselaer", "reston", "sacramento", "saint louis",
+    "san antonio", "san mateo", "santa clara", "santa monica", "saugus", "schenectady", "scottsdale",
+    "spokane", "st louis", "stamford", "staten island", "tacoma", "tarrytown", "tempe", "tucson",
+    "tulsa", "waltham", "waukesha", "westchester", "woburn",
 ]
 _STATE_ABBRS = "|".join(sorted(set(STATES.values())))
 US_RE = re.compile(
     r"\b(united states|u\.s\.a?\.?|usa|us|americas|north america)\b"
     r"|\b(" + "|".join(re.escape(s) for s in list(STATES) + US_CITIES) + r")\b",
     re.I)
-# "Austin, TX" / "US-TX-Austin" / "TX - Dallas": a state code next to a separator. Case-sensitive.
-US_ABBR_RE = re.compile(r"(?:^|[,\-|/(]\s*)(" + _STATE_ABBRS + r")(?=\s*(?:$|[,\-|/)]))")
+_STATE_TITLES = "|".join(sorted({a.title() for a in STATES.values()}))
+# State codes next to a separator or in a recognizable spot. Case-sensitive.
+US_ABBR_RE = re.compile(
+    r"(?:^|[,\-|/(_]\s*)(?:" + _STATE_ABBRS + r")(?=\s*(?:$|[,\-|/)_]))"  # "Austin, TX" / "US-TX-Austin" / "AZ_Phoenix"
+    r"|,\s*(?:" + _STATE_ABBRS + r")\b"  # "Aspen, CO (10020)" / "Omaha, NE Onsite"
+    r"|\b(?:" + _STATE_ABBRS + r")\s+\d{5}\b"  # "Woodbridge NJ 07095"
+    r"|[\w.)]\s+(?:" + _STATE_ABBRS + r")\s*$"  # "Tulsa OK"
+    r"|^(?:" + _STATE_ABBRS + r")\s+\w"  # "NY office"
+    r"|,\s*(?:" + _STATE_TITLES + r")\s*$"  # "Gainesville, Fl"
+    r"|\bSF\b")
+# US towns that share a name with a foreign place on the NON_US list.
+US_NAMESAKE_RE = re.compile(r"\b(?:" + "|".join([
+    "dublin,? (?:ca|oh|california|ohio)", "melbourne,? (?:fl|florida)", "vancouver,? (?:wa|washington)",
+    "ontario,? (?:or|california|oregon)", "paris,? (?:tx|tn|ky|texas|tennessee|kentucky)",
+    "london,? (?:ky|oh|kentucky|ohio)", "lima,? (?:oh|ohio)", "peru,? (?:il|illinois|indiana)",
+    "berlin,? (?:ct|md|nh|nj|pa|wi|connecticut|maryland|new hampshire|new jersey|pennsylvania|wisconsin)",
+    "hamburg,? (?:ny|nj|pa|new york|new jersey|pennsylvania)", "warsaw,? (?:va|indiana|virginia)",
+    "malta,? (?:ny|new york)",
+]) + r")\b", re.I)
 EXPLICIT_US_RE = re.compile(r"\b(united states|u\.s\.a?\.?|usa|us)\b", re.I)
 NON_US_RE = re.compile(r"\b(" + "|".join([
     "canada", "uk", "united kingdom", "england", "scotland", "wales", "ireland", "europe", "eu",
@@ -185,7 +212,7 @@ NON_US_RE = re.compile(r"\b(" + "|".join([
     "poland", "romania", "czechia", "czech republic", "slovakia", "hungary", "greece", "sweden",
     "norway", "denmark", "finland", "estonia", "lithuania", "latvia", "ukraine", "serbia", "croatia",
     "bulgaria", "turkey", "israel", "uae", "dubai", "saudi arabia", "egypt", "nigeria", "kenya",
-    "south africa", "brazil", "mexico city", "argentina", "colombia", "chile", "peru", "uruguay",
+    "south africa", "brazil", "(?<!new )mexico", "argentina", "colombia", "chile", "peru", "uruguay",
     "costa rica", "australia", "new zealand", "singapore", "japan", "china", "hong kong", "taiwan",
     "korea", "philippines", "vietnam", "thailand", "malaysia", "indonesia", "pakistan", "bangladesh",
     "toronto", "vancouver", "montreal", "ottawa", "calgary", "london", "dublin", "berlin", "munich",
@@ -195,11 +222,17 @@ NON_US_RE = re.compile(r"\b(" + "|".join([
     "gurugram", "noida", "delhi", "sydney", "melbourne", "tokyo", "seoul", "shanghai", "beijing",
     "shenzhen", "manila", "sao paulo", "são paulo", "buenos aires", "bogota", "bogotá", "medellin",
     "santiago", "lima", "cdmx", "guadalajara", "monterrey", "ontario", "quebec", "british columbia",
-    "alberta",
+    "alberta", "afghanistan", "albania", "armenia", "azerbaijan", "bangkok", "bolivia", "bosnia", "brasil",
+    "cambodia", "cyprus", "deutschland", "dominican republic", "ecuador", "el salvador", "ethiopia",
+    "european union", "ghana", "gibraltar", "guatemala", "honduras", "iceland", "istanbul", "jakarta",
+    "kazakhstan", "kuala lumpur", "kyiv", "luxembourg", "manitoba", "malta", "méxico", "mississauga",
+    "morocco", "nepal", "newfoundland", "nicaragua", "nova scotia", "panama(?! city)", "paraguay",
+    "russia", "rwanda", "santo domingo", "saskatchewan", "slovenia", "sri lanka", "tanzania", "türkiye",
+    "uganda", "united arab emirates", "uzbekistan", "venezuela",
 ]) + r")\b", re.I)
-# Workday-style ISO country codes: "Remote (IND)", "Remote-GBR", "Toronto (CAN)". Codes are matched
-# case-sensitively and only in those spots, so street addresses and acronyms don't trip it.
-COUNTRY_CODE_RE = re.compile(r"(?:\(|(?i:\bremote)\s*[-–:,]\s*)(" + "|".join([
+# Workday-style ISO country codes: "Remote (IND)", "Remote-GBR", "GBR - Remote", "Toronto, CAN". Codes are
+# matched case-sensitively and only in those spots, so street addresses and acronyms don't trip it.
+COUNTRY_CODE_RE = re.compile(r"(?:^|\(|,\s*|>\s*|(?i:\bremote)\s*[-–:,]\s*)(" + "|".join([
     "IND", "CAN", "GBR", "AUS", "NZL", "MEX", "BRA", "ARG", "COL", "CHL", "PER", "URY", "CRI", "DEU",
     "FRA", "ESP", "PRT", "ITA", "IRL", "NLD", "BEL", "CHE", "AUT", "POL", "ROU", "CZE", "SWE", "NOR",
     "DNK", "FIN", "UKR", "TUR", "ISR", "ARE", "SAU", "EGY", "ZAF", "NGA", "KEN", "JPN", "CHN", "HKG",
@@ -214,11 +247,16 @@ def _non_us(s):
 
 
 def _is_us_string(s):
+    if US_NAMESAKE_RE.search(s):
+        return True
     pos = bool(US_RE.search(s) or US_ABBR_RE.search(s))
-    if pos and _non_us(s) and not EXPLICIT_US_RE.search(s):
-        # e.g. "New Mexico" is fine, but "Berlin, DE" or "Toronto, ON, Canada" is not
-        return bool(re.search(r"new mexico", s, re.I)) and not re.search(r"mexico city", s, re.I)
-    return pos
+    # "Berlin, DE" or "Toronto, ON, Canada" look US but aren't
+    return pos and (not _non_us(s) or bool(EXPLICIT_US_RE.search(s)))
+
+
+def clearly_non_us(s):
+    """True only when a location names somewhere abroad; False for US or unrecognized places."""
+    return _non_us(s) and not _is_us_string(s)
 
 
 def classify_location(locations, remote_flag=False):
@@ -229,9 +267,8 @@ def classify_location(locations, remote_flag=False):
     """
     us_onsite = us_remote = False
     any_remote_string = False
-    for s in locations:
-        if not s:
-            continue
+    # One string can list several places: "Boston, MA; Vancouver, Canada" or "London & San Francisco".
+    for s in (part for loc in locations if loc for part in re.split(r"\s*[;|&]\s*", loc)):
         if REMOTE_RE.search(s) or BARE_US_RE.match(s):
             any_remote_string = True
             if _is_us_string(s) or not _non_us(s):
