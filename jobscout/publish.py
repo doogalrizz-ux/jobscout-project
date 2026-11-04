@@ -71,7 +71,7 @@ def publish(out_dir, prev_url=None, max_age_days=14, workers=24, limit=None):
     previous = load_previous(out_dir, prev_url)
     cache = DetailCache(STATE)
     # board_budget_s: one huge board can't hold up the run; unfinished details resume next time.
-    ctx = {"max_age_days": max_age_days, "workday_max_jobs": 1000, "board_budget_s": 600, "detail_cache": cache}
+    ctx = {"max_age_days": max_age_days, "workday_max_jobs": 2000, "board_budget_s": 600, "detail_cache": cache}
     today = date.today().isoformat()
     cutoff = (date.today() - timedelta(days=max_age_days)).isoformat()
 

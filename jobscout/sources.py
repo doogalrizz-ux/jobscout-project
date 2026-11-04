@@ -126,6 +126,49 @@ def _workday_age(posted_on):
     return 0 if word == "today" else 1 if word == "yesterday" else int(m.group(2))
 
 
+_US_NAME_RE = re.compile(r"(united states( of america)?|usa?)$", re.I)
+# Listings are only roughly newest-first: Walmart and Accenture run 20+ pages of old jobs, then fresh ones.
+_WORKDAY_OLD_PAGES = 30
+
+
+def _workday_us_facet(facets, param=None):
+    """The filter for US jobs, e.g. {"locationCountry": [id]}; None if the board has no country filter."""
+    for f in facets or []:
+        name = f.get("facetParameter") or param
+        ids = [v["id"] for v in f.get("values") or [] if v.get("id") and "values" not in v
+               and _US_NAME_RE.match((v.get("descriptor") or "").strip())]
+        if ids and re.search("country", name or "", re.I):
+            return {name: ids}
+        nested = _workday_us_facet([v for v in f.get("values") or [] if "values" in v], name)
+        if nested:
+            return nested
+    return None
+
+
+def _workday_listing(base, applied, ctx, deadline):
+    """Yield (posting, age) for recent jobs in one listing, stopping after a long run of old pages."""
+    seen, offset, page_size, old_pages = set(), 0, 20, 0
+    while offset < ctx["workday_max_jobs"] and time.monotonic() < deadline:
+        data = http_json(f"{base}/jobs", body={"appliedFacets": applied, "limit": page_size,
+                                               "offset": offset, "searchText": ""}, timeout=45)
+        postings = (data or {}).get("jobPostings") or []
+        paths = {p.get("externalPath") for p in postings}
+        if paths <= seen:
+            break  # nothing, or past the end: some boards repeat earlier pages forever
+        seen |= paths
+        too_old = 0
+        for p in postings:
+            age = _workday_age(p.get("postedOn"))
+            if age is not None and age >= ctx["max_age_days"]:
+                too_old += 1
+                continue
+            yield p, age
+        old_pages = old_pages + 1 if too_old == len(postings) else 0
+        if old_pages >= _WORKDAY_OLD_PAGES or len(postings) < page_size:
+            break
+        offset += page_size
+
+
 def _fill_details(needed, fetch, ctx, deadline):
     """Fetch missing per-job details a few at a time and store them in ctx["detail_cache"].
 
@@ -157,28 +200,21 @@ def workday(company, ctx):
     today = date.today()
     deadline = time.monotonic() + ctx.get("board_budget_s", 600)
 
-    # 1. Page through the newest-first listing until postings are older than max_age_days.
-    listed, offset, page_size = [], 0, 20
-    while offset < ctx["workday_max_jobs"] and time.monotonic() < deadline:
-        data = http_json(f"{base}/jobs", body={"appliedFacets": {}, "limit": page_size,
-                                               "offset": offset, "searchText": ""}, timeout=45)
-        postings = (data or {}).get("jobPostings") or []
-        too_old = 0
-        for p in postings:
-            age = _workday_age(p.get("postedOn"))
-            if age is not None and age >= ctx["max_age_days"]:
-                too_old += 1
-                continue
+    # 1. Page through the listing for postings newer than max_age_days. The US filter reaches jobs that
+    # a global board's 2,000-result limit hides; the full list keeps US jobs the filter leaves out.
+    first = http_json(f"{base}/jobs", body={"appliedFacets": {}, "limit": 1, "offset": 0, "searchText": ""}, timeout=45)
+    us_facet = _workday_us_facet((first or {}).get("facets"))
+    listed, seen = [], set()
+    for applied in ([us_facet] if us_facet else []) + [{}]:
+        for p, age in _workday_listing(base, applied, ctx, deadline):
             path, loc_text = p.get("externalPath"), p.get("locationsText") or ""
-            if not path or not p.get("title"):
+            if not path or not p.get("title") or path in seen:
                 continue
             multi = bool(re.match(r"\d+\s+locations?$", loc_text, re.I))
-            if not multi and clearly_non_us(loc_text):
+            if not applied and not multi and clearly_non_us(loc_text):
                 continue  # skip the detail call; unrecognized places like "Main Campus" need its country
+            seen.add(path)
             listed.append((p, age, f"workday:{company['slug']}:{path}"))
-        if not postings or too_old == len(postings) or len(postings) < page_size:
-            break
-        offset += page_size
 
     # 2. Details (description, all locations, exact date) for jobs we haven't seen before.
     def fetch(path):
