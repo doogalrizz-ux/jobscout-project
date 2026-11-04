@@ -10718,6 +10718,12 @@
   },
   {
    "ats": "workday",
+   "slug": "horizonmedia/CareerOpportunities",
+   "host": "horizonmedia.wd1.myworkdayjobs.com",
+   "name": "Horizon Media"
+  },
+  {
+   "ats": "workday",
    "slug": "hornbeckoffshore/Hornbeck",
    "host": "hornbeckoffshore.wd5.myworkdayjobs.com",
    "name": "Hornbeck Offshore"
