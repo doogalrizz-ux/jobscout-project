@@ -1,5 +1,5 @@
 {
- "updated": "2026-11-02",
+ "updated": "2026-11-09",
  "companies": [
   {
    "ats": "ashby",
@@ -47,6 +47,11 @@
    "ats": "smartrecruiters",
    "slug": "3HPartners",
    "name": "3H Partners"
+  },
+  {
+   "ats": "ashby",
+   "slug": "3ive",
+   "name": "3ive"
   },
   {
    "ats": "workday",
@@ -7527,6 +7532,11 @@
    "ats": "greenhouse",
    "slug": "equalexperts",
    "name": "Equal Experts"
+  },
+  {
+   "ats": "ashby",
+   "slug": "equall",
+   "name": "Equall"
   },
   {
    "ats": "greenhouse",
@@ -23263,6 +23273,11 @@
    "slug": "unhcr/External",
    "host": "unhcr.wd3.myworkdayjobs.com",
    "name": "United Nations High Commissioner for Refugees"
+  },
+  {
+   "ats": "lever",
+   "slug": "auw",
+   "name": "United Risk"
   },
   {
    "ats": "ashby",
