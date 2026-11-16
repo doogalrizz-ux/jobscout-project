@@ -1,5 +1,5 @@
 {
- "updated": "2026-11-09",
+ "updated": "2026-11-16",
  "companies": [
   {
    "ats": "ashby",
@@ -913,6 +913,11 @@
    "ats": "smartrecruiters",
    "slug": "ALTEREA",
    "name": "ALTEREA"
+  },
+  {
+   "ats": "ashby",
+   "slug": "alternativepayments",
+   "name": "Alternative Payments"
   },
   {
    "ats": "smartrecruiters",
@@ -2807,6 +2812,11 @@
    "slug": "bonadio/Bonadio_Careers",
    "host": "bonadio.wd503.myworkdayjobs.com",
    "name": "Bonadio"
+  },
+  {
+   "ats": "ashby",
+   "slug": "bonfireanalytics",
+   "name": "Bonfire Analytics"
   },
   {
    "ats": "workday",
@@ -14538,6 +14548,11 @@
    "ats": "greenhouse",
    "slug": "odeko",
    "name": "Odeko"
+  },
+  {
+   "ats": "greenhouse",
+   "slug": "odinlabs",
+   "name": "ODIN Labs"
   },
   {
    "ats": "ashby",
